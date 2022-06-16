@@ -81,7 +81,7 @@ func (t ArrayType) CustomConvert(name string, depth int, pointer bool, lastArr b
 		Pointer  bool
 	}{
 		FullType: t.String(),
-		Type:     t.BaseType().String(),
+		Type:     t.baseType().String(),
 		Name:     name,
 		Inner:    inner,
 		Depth1:   depth,
@@ -138,7 +138,7 @@ func (t MapType) CustomConvert(name string, depth int, pointer bool, lastArr boo
 		Pointer  bool
 	}{
 		FullType: t.String(),
-		Type:     t.BaseType().String(),
+		Type:     t.baseType().String(),
 		Name:     name,
 		Inner:    inner,
 		Depth1:   depth,

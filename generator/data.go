@@ -24,129 +24,110 @@ func (t *Type) AddField(f Field) {
 	t.Fields = append(t.Fields, f)
 }
 
-func CreateField(f *ast.Field) Field {
-	field := Field{Name: f.Names[0].String()}
-	switch f.Type.(type) {
-	case *ast.StarExpr:
-		field.Pointer = true
-		field.Type = CreateFieldType(f.Type)
-	case *ast.Ident, *ast.ArrayType, *ast.MapType:
-		field.Type = CreateFieldType(f.Type)
-	default:
-		panic("unsupported ast type")
-	}
-	return field
-}
-
 type Field struct {
 	Pointer bool
 	Name    string
 	Type    FieldType
 }
 
+func CreateField(tName string, f *ast.Field) Field {
+	fName := f.Names[0].String()
+	field := Field{Name: fName}
+	switch typ := f.Type.(type) {
+	case *ast.StarExpr:
+		field.Pointer = true
+		field.Type = CreateFieldType(tName, fName, typ.X)
+	default:
+		field.Type = CreateFieldType(tName, fName, typ)
+	}
+	return field
+}
+func CreateFields(tName string, f *ast.Field) []Field {
+	var fields []Field
+	for _, v := range f.Names {
+		field := Field{Name: v.Name}
+		switch typ := f.Type.(type) {
+		case *ast.StarExpr:
+			field.Pointer = true
+			field.Type = CreateFieldType(tName, v.Name, typ.X)
+		default:
+			field.Type = CreateFieldType(tName, v.Name, typ)
+		}
+		fields = append(fields, field)
+	}
+	return fields
+}
+
+func (f Field) String() string {
+	if f.Pointer {
+		return f.Name + ": *" + f.Type.String()
+	}
+	return f.Name + ": " + f.Type.String()
+}
+
 // Used to generate template
 func (f Field) Rule() string {
-	return f.Type.Rule()
+	return f.Type.rule()
 }
 
 // Used to generate template
 func (f Field) Convert() string {
-	ident := "res." + f.Name + " = "
-	switch typ := f.Type.(type) {
+	var hasCustomBaseType bool
+	switch f.BaseType().(type) {
 	case CustomType:
-		return ident + typ.Convert(f.Name)
-	case PointerType:
-		switch typ := typ.Type.(type) {
-		case PointerType:
-			panic("double pointers")
-		case ArrayType:
-			if f.HasCustomBaseType() {
+		hasCustomBaseType = true
+	}
+	ident := "res." + f.Name + " = "
+	if f.Pointer {
+		if hasCustomBaseType {
+			switch typ := f.Type.(type) {
+			case ArrayType:
 				return typ.CustomConvert(f.Name, 0, true, true)
-			}
-		case MapType:
-			if f.HasCustomBaseType() {
+			case MapType:
 				return typ.CustomConvert(f.Name, 0, true, false)
 			}
 		}
 		return ident + Convert(f.Name, f.Type)
-	case ArrayType:
-		if f.HasCustomBaseType() {
-			return typ.CustomConvert(f.Name, 0, false, true)
+	} else {
+		switch typ := f.Type.(type) {
+		case CustomType:
+			return ident + typ.Convert(f.Name)
+		case ArrayType:
+			if hasCustomBaseType {
+				return typ.CustomConvert(f.Name, 0, false, true)
+			}
+		case MapType:
+			if hasCustomBaseType {
+				return typ.CustomConvert(f.Name, 0, false, false)
+			}
 		}
-	case MapType:
-		if f.HasCustomBaseType() {
-			return typ.CustomConvert(f.Name, 0, false, false)
-		}
+		return ident + "*" + Convert(f.Name, f.Type)
 	}
-	return ident + "*" + Convert(f.Name, f.Type)
 }
-
-// 	case ArrayType:
-// 		switch in.BaseType().(type) {
-// 		case CustomType:
-// 			return typ.CustomConvert(name)
-// 			// return in.Convert(name) + "// custom array"
-// 		}
-// 	case MapType:
-// 		switch in.BaseType().(type) {
-// 		case CustomType:
-// 			return in.Convert(name) + "// custom map"
-// 		}
-// 	}
-// 	return in.Convert(name)
-// }
 
 // Used to generate template
 func (f Field) BaseType() FieldType {
-	return f.Type.BaseType()
-}
-
-func (f Field) HasCustomBaseType() bool {
-	switch f.BaseType().(type) {
-	case CustomType:
-		return true
-	}
-	return false
+	return f.Type.baseType()
 }
 
 // Used to generate template
 func (f Field) In() string {
-	switch f.Type.(type) { // , * or not
-	case PointerType:
-		return inHelper(f.Type)
-	default:
-		return "*" + inHelper(f.Type)
-	}
-}
-
-func inHelper(in FieldType) string {
-	switch in.BaseType().(type) { // In or not
+	switch f.BaseType().(type) { // In or not
 	case CustomType:
-		return in.String() + "In"
+		return "*" + f.Type.String() + "In"
 	default: // primitive
-		return in.String()
-	}
-}
-
-// Used to generate template
-func (f Field) IsPointer() bool {
-	switch f.Type.(type) {
-	case PointerType:
-		return true
-	default:
-		return false
+		return "*" + f.Type.String()
 	}
 }
 
 type FieldType interface {
 	String() string
-	Rule() string
-	// Convert(string) string
-	BaseType() FieldType
+	rule() string
+	baseType() FieldType
 	isFieldType()
 }
 
-func CreateFieldType(e ast.Expr) FieldType {
+func CreateFieldType(tName, fName string, e ast.Expr) FieldType {
 	switch x := e.(type) {
 	case *ast.Ident:
 		if x.Obj == nil { // Primitive
@@ -155,13 +136,13 @@ func CreateFieldType(e ast.Expr) FieldType {
 			return CustomType{Value: x.Name}
 		}
 	case *ast.ArrayType:
-		return ArrayType{Type: CreateFieldType(x.Elt)}
+		return ArrayType{Type: CreateFieldType(tName, fName, x.Elt)}
 	case *ast.MapType:
-		return MapType{KeyType: CreateFieldType(x.Key), ValueType: CreateFieldType(x.Value)}
+		return MapType{KeyType: CreateFieldType(tName, fName, x.Key), ValueType: CreateFieldType(tName, fName, x.Value)}
 	case *ast.StarExpr:
-		return PointerType{Type: CreateFieldType(x.X)}
+		panic(fmt.Sprintf("struct %s, field %s: more than one pointer are not allowed", tName, fName))
 	default:
-		panic(fmt.Sprintf("unsupported type: %#v", x))
+		panic(fmt.Sprintf("struct %s, field %s: unsupported type", tName, fName))
 	}
 }
 
@@ -173,10 +154,6 @@ type PrimitiveType struct {
 
 type CustomType struct {
 	Value string
-}
-
-type PointerType struct {
-	Type FieldType
 }
 
 type ArrayType struct {
@@ -191,33 +168,29 @@ type MapType struct {
 // Interface functions
 func (t PrimitiveType) isFieldType() {}
 func (t CustomType) isFieldType()    {}
-func (t PointerType) isFieldType()   {}
 func (t ArrayType) isFieldType()     {}
 func (t MapType) isFieldType()       {}
 
 // String functions
 func (t PrimitiveType) String() string { return t.Value }
 func (t CustomType) String() string    { return t.Value }
-func (t PointerType) String() string   { return "*" + t.Type.String() }
 func (t ArrayType) String() string     { return "[]" + t.Type.String() }
 func (t MapType) String() string       { return "map[" + t.KeyType.String() + "]" + t.ValueType.String() }
 
 // Convert
 func Convert(name string, t FieldType) string {
-	switch t.BaseType().(type) {
+	switch t.baseType().(type) {
 	case CustomType:
 		return "in." + t.String() + ".Convert()"
 	}
 	return "in." + name
 }
+
 func (t PrimitiveType) Convert(name string) string {
 	return "in." + name
 }
 func (t CustomType) Convert(name string) string {
 	return "in." + t.String() + ".Convert()"
-}
-func (t PointerType) Convert(name string) string {
-	return "in." + name
 }
 func (t ArrayType) Convert(name string) string {
 	return "in." + name
@@ -227,26 +200,23 @@ func (t MapType) Convert(name string) string {
 }
 
 // Rule functions
-func (t PrimitiveType) Rule() string {
+func (t PrimitiveType) rule() string {
 	return "validation.Rules[" + t.Value + "]"
 }
-func (t CustomType) Rule() string {
+func (t CustomType) rule() string {
 	return "validation.Rule[" + t.Value + "In]"
 }
-func (t PointerType) Rule() string {
-	return t.Type.Rule()
-}
-func (t ArrayType) Rule() string {
+func (t ArrayType) rule() string {
 	typWithoutBrackets := t.Type.String()
-	switch t.BaseType().(type) {
+	switch t.baseType().(type) {
 	case CustomType:
 		typWithoutBrackets += "In"
 	}
 	return "validation.ListRules[" + typWithoutBrackets + "]"
 }
-func (t MapType) Rule() string {
+func (t MapType) rule() string {
 	valWithoutBrackets := t.ValueType.String()
-	switch t.BaseType().(type) {
+	switch t.baseType().(type) {
 	case CustomType:
 		valWithoutBrackets += "In"
 	}
@@ -254,8 +224,7 @@ func (t MapType) Rule() string {
 }
 
 // Base type
-func (t PrimitiveType) BaseType() FieldType { return t }
-func (t CustomType) BaseType() FieldType    { return t }
-func (t PointerType) BaseType() FieldType   { return t.Type.BaseType() }
-func (t ArrayType) BaseType() FieldType     { return t.Type.BaseType() }
-func (t MapType) BaseType() FieldType       { return t.ValueType.BaseType() }
+func (t PrimitiveType) baseType() FieldType { return t }
+func (t CustomType) baseType() FieldType    { return t }
+func (t ArrayType) baseType() FieldType     { return t.Type.baseType() }
+func (t MapType) baseType() FieldType       { return t.ValueType.baseType() }

@@ -40,7 +40,7 @@ func (r {{ .Name }}Rules) Validate(in {{ .Name }}In) error {
             if err := r.{{ .Name }}.Validate(*in.{{ .Name }}); err != nil {
                 errs.AddError("{{ .Name }}", err)
             }
-        }  {{ if not .IsPointer }} else {
+        }  {{ if not .Pointer }} else {
             errs.AddError("{{ .Name }}", validation.RequiredErr{})
         } {{ end }}
     {{- end }} 
