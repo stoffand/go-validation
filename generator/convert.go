@@ -41,21 +41,19 @@ var (
 		res{{ .Depth1 }} = append(res{{ .Depth1 }}, res{{ .Depth2 }})`
 )
 
-func (t ArrayType) CustomConvert(name string, depth int, pointer bool, lastArr bool) string {
+func (t ArrayType) customConvert(name string, depth int, pointer bool, lastArr bool) string {
 	// Get inner recursively
 	var inner string
 	switch typ := t.Type.(type) {
 	case CustomType:
 		inner = fmt.Sprintf("res%d = append(res%d, v%d.Convert())", depth+1, depth+1, depth+1)
 	case ArrayType:
-		inner = typ.CustomConvert(name, depth+1, pointer, true)
+		inner = typ.customConvert(name, depth+1, pointer, true)
 	case MapType:
-		inner = typ.CustomConvert(name, depth+1, pointer, true)
+		inner = typ.customConvert(name, depth+1, pointer, true)
 	default:
-		// return fmt.Sprintf(" %v ", depth+1) + typ.CustomConvert(name, depth+1)
 		panic("custom convert was not one of custom, arr or map")
 	}
-	fmt.Printf("inner: %v\n", inner)
 
 	// Template
 	var tmpl *template.Template
@@ -98,21 +96,19 @@ func (t ArrayType) CustomConvert(name string, depth int, pointer bool, lastArr b
 	return buf.String()
 }
 
-func (t MapType) CustomConvert(name string, depth int, pointer bool, lastArr bool) string {
+func (t MapType) customConvert(name string, depth int, pointer bool, lastArr bool) string {
 	// Get inner recursively
 	var inner string
 	switch typ := t.ValueType.(type) {
 	case CustomType:
 		inner = fmt.Sprintf("res%d[k%d] = v%d.Convert()", depth+1, depth+1, depth+1)
 	case ArrayType:
-		inner = typ.CustomConvert(name, depth+1, pointer, false)
+		inner = typ.customConvert(name, depth+1, pointer, false)
 	case MapType:
-		inner = typ.CustomConvert(name, depth+1, pointer, false)
+		inner = typ.customConvert(name, depth+1, pointer, false)
 	default:
-		// return fmt.Sprintf(" %v ", depth+1) + typ.CustomConvert(name, depth+1)
 		panic("custom convert was not one of custom, arr or map")
 	}
-	fmt.Printf("inner: %v\n", inner)
 
 	// Template
 	var tmpl *template.Template
@@ -154,16 +150,3 @@ func (t MapType) CustomConvert(name string, depth int, pointer bool, lastArr boo
 	}
 	return buf.String()
 }
-
-// func (t MapType) CustomConvert(name string, depth int) string {
-// 	depth++
-// 	switch typ := t.ValueType.(type) {
-// 	case CustomType:
-// 		return typ.String()
-// 	case ArrayType:
-// 		return typ.CustomConvert(name, depth, false)
-// 	case MapType:
-// 		return typ.CustomConvert(name, depth)
-// 	}
-// 	panic("custom convert was not one of custom, arr or map")
-// }

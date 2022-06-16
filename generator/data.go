@@ -11,7 +11,7 @@ type Data struct {
 	Types []Type
 }
 
-func (d *Data) AddType(t Type) {
+func (d *Data) addType(t Type) {
 	d.Types = append(d.Types, t)
 }
 
@@ -20,7 +20,7 @@ type Type struct {
 	Fields []Field
 }
 
-func (t *Type) AddField(f Field) {
+func (t *Type) addField(f Field) {
 	t.Fields = append(t.Fields, f)
 }
 
@@ -30,28 +30,16 @@ type Field struct {
 	Type    FieldType
 }
 
-func CreateField(tName string, f *ast.Field) Field {
-	fName := f.Names[0].String()
-	field := Field{Name: fName}
-	switch typ := f.Type.(type) {
-	case *ast.StarExpr:
-		field.Pointer = true
-		field.Type = CreateFieldType(tName, fName, typ.X)
-	default:
-		field.Type = CreateFieldType(tName, fName, typ)
-	}
-	return field
-}
-func CreateFields(tName string, f *ast.Field) []Field {
+func createFields(tName string, f *ast.Field) []Field {
 	var fields []Field
 	for _, v := range f.Names {
 		field := Field{Name: v.Name}
 		switch typ := f.Type.(type) {
 		case *ast.StarExpr:
 			field.Pointer = true
-			field.Type = CreateFieldType(tName, v.Name, typ.X)
+			field.Type = createFieldType(tName, v.Name, typ.X)
 		default:
-			field.Type = CreateFieldType(tName, v.Name, typ)
+			field.Type = createFieldType(tName, v.Name, typ)
 		}
 		fields = append(fields, field)
 	}
@@ -82,9 +70,9 @@ func (f Field) Convert() string {
 		if hasCustomBaseType {
 			switch typ := f.Type.(type) {
 			case ArrayType:
-				return typ.CustomConvert(f.Name, 0, true, true)
+				return typ.customConvert(f.Name, 0, true, true)
 			case MapType:
-				return typ.CustomConvert(f.Name, 0, true, false)
+				return typ.customConvert(f.Name, 0, true, false)
 			}
 		}
 		return ident + Convert(f.Name, f.Type)
@@ -94,11 +82,11 @@ func (f Field) Convert() string {
 			return ident + typ.Convert(f.Name)
 		case ArrayType:
 			if hasCustomBaseType {
-				return typ.CustomConvert(f.Name, 0, false, true)
+				return typ.customConvert(f.Name, 0, false, true)
 			}
 		case MapType:
 			if hasCustomBaseType {
-				return typ.CustomConvert(f.Name, 0, false, false)
+				return typ.customConvert(f.Name, 0, false, false)
 			}
 		}
 		return ident + "*" + Convert(f.Name, f.Type)
@@ -127,7 +115,7 @@ type FieldType interface {
 	isFieldType()
 }
 
-func CreateFieldType(tName, fName string, e ast.Expr) FieldType {
+func createFieldType(tName, fName string, e ast.Expr) FieldType {
 	switch x := e.(type) {
 	case *ast.Ident:
 		if x.Obj == nil { // Primitive
@@ -136,9 +124,9 @@ func CreateFieldType(tName, fName string, e ast.Expr) FieldType {
 			return CustomType{Value: x.Name}
 		}
 	case *ast.ArrayType:
-		return ArrayType{Type: CreateFieldType(tName, fName, x.Elt)}
+		return ArrayType{Type: createFieldType(tName, fName, x.Elt)}
 	case *ast.MapType:
-		return MapType{KeyType: CreateFieldType(tName, fName, x.Key), ValueType: CreateFieldType(tName, fName, x.Value)}
+		return MapType{KeyType: createFieldType(tName, fName, x.Key), ValueType: createFieldType(tName, fName, x.Value)}
 	case *ast.StarExpr:
 		panic(fmt.Sprintf("struct %s, field %s: more than one pointer are not allowed", tName, fName))
 	default:

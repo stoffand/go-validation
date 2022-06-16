@@ -33,15 +33,15 @@ func (v TypeVisitor) Visit(n ast.Node) ast.Visitor {
 		switch t := d.Type.(type) {
 		case *ast.StructType:
 			for _, f := range t.Fields.List {
-				fields := CreateFields(tName, f)
+				fields := createFields(tName, f)
 				for _, v := range fields {
-					newType.AddField(v)
+					newType.addField(v)
 				}
 			}
 		case *ast.Ident:
 			panic("type aliases not implemented")
 		}
-		v.Data.AddType(newType)
+		v.Data.addType(newType)
 	}
 	return v
 }
