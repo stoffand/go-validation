@@ -1,7 +1,6 @@
 package generator
 
 import (
-	"fmt"
 	"go/ast"
 )
 
@@ -33,19 +32,16 @@ func (v TypeVisitor) Visit(n ast.Node) ast.Visitor {
 		}
 		switch t := d.Type.(type) {
 		case *ast.StructType:
-			fmt.Printf("Struct: %v\n", d.Name)
 			for _, f := range t.Fields.List {
 				fields := CreateFields(tName, f)
 				for _, v := range fields {
 					newType.AddField(v)
-					fmt.Printf("\t%s\n", v)
 				}
 			}
 		case *ast.Ident:
 			panic("type aliases not implemented")
 		}
 		v.Data.AddType(newType)
-		fmt.Printf("\n-------------\n\n")
 	}
 	return v
 }
