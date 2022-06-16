@@ -7,8 +7,23 @@ import (
 
 // ImportPath string?
 type Data struct {
-	Pkg   string
-	Types []Type
+	Pkg     string
+	Types   []Type
+	Imports []Import
+}
+
+func (d *Data) UseImport(imp string) {
+	for i := 0; i < len(d.Imports); i++ {
+		if d.Imports[i].Alias == imp {
+			d.Imports[i].Used = true
+		}
+	}
+}
+
+type Import struct {
+	Alias string
+	Path  string
+	Used  bool
 }
 
 func (d *Data) addType(t Type) {
@@ -30,16 +45,16 @@ type Field struct {
 	Type    FieldType
 }
 
-func createFields(tName string, f *ast.Field) []Field {
+func createFields(tName string, f *ast.Field, data *Data) []Field {
 	var fields []Field
 	for _, v := range f.Names {
 		field := Field{Name: v.Name}
 		switch typ := f.Type.(type) {
 		case *ast.StarExpr:
 			field.Pointer = true
-			field.Type = createFieldType(tName, v.Name, typ.X)
+			field.Type = createFieldType(tName, v.Name, typ.X, data)
 		default:
-			field.Type = createFieldType(tName, v.Name, typ)
+			field.Type = createFieldType(tName, v.Name, typ, data)
 		}
 		fields = append(fields, field)
 	}
@@ -78,8 +93,8 @@ func (f Field) Convert() string {
 		return ident + Convert(f.Name, f.Type)
 	} else {
 		switch typ := f.Type.(type) {
-		case CustomType:
-			return ident + typ.Convert(f.Name)
+		case CustomType, ImportedType:
+			return ident + Convert(f.Name, f.Type)
 		case ArrayType:
 			if hasCustomBaseType {
 				return typ.customConvert(f.Name, 0, false, true)
@@ -103,9 +118,12 @@ func (f Field) In() string {
 	switch f.BaseType().(type) { // In or not
 	case CustomType:
 		return "*" + f.Type.String() + "In"
-	default: // primitive
+	case ImportedType:
+		return "*" + f.Type.String() + "In"
+	case PrimitiveType: // primitive
 		return "*" + f.Type.String()
 	}
+	panic(fmt.Sprintf("unsupported basetype: %v", f))
 }
 
 type FieldType interface {
@@ -115,23 +133,46 @@ type FieldType interface {
 	isFieldType()
 }
 
-func createFieldType(tName, fName string, e ast.Expr) FieldType {
+func createFieldType(tName, fName string, e ast.Expr, data *Data) FieldType {
 	switch x := e.(type) {
 	case *ast.Ident:
-		if x.Obj == nil { // Primitive
+		if isBaseType(x.Name) {
 			return PrimitiveType{Value: x.Name}
-		} else { // Custom
-			return CustomType{Value: x.Name}
 		}
+		return CustomType{Value: x.Name}
 	case *ast.ArrayType:
-		return ArrayType{Type: createFieldType(tName, fName, x.Elt)}
+		return ArrayType{Type: createFieldType(tName, fName, x.Elt, data)}
 	case *ast.MapType:
-		return MapType{KeyType: createFieldType(tName, fName, x.Key), ValueType: createFieldType(tName, fName, x.Value)}
+		return MapType{KeyType: createFieldType(tName, fName, x.Key, data), ValueType: createFieldType(tName, fName, x.Value, data)}
 	case *ast.StarExpr:
 		panic(fmt.Sprintf("struct %s, field %s: more than one pointer are not allowed", tName, fName))
+	case *ast.SelectorExpr: // imported type (always custom)
+		imp, ok := x.X.(*ast.Ident)
+		typ := x.Sel
+		if !ok || typ == nil {
+			panic("imported type syntax error")
+		}
+		data.UseImport(imp.Name)
+		return ImportedType{
+			Import: imp.Name,
+			Type:   CustomType{Value: typ.Name},
+		}
 	default:
 		panic(fmt.Sprintf("struct %s, field %s: unsupported type", tName, fName))
 	}
+}
+
+func isBaseType(in string) bool {
+	switch in {
+	case "int8", "int16", "int32", "int64",
+		"uint8", "uint16", "uint32", "uint64",
+		"int", "uint", "rune", "byte", "uintptr",
+		"float32", "float64",
+		"complex64", "complex128",
+		"string", "bool":
+		return true
+	}
+	return false
 }
 
 // Data types
@@ -142,6 +183,11 @@ type PrimitiveType struct {
 
 type CustomType struct {
 	Value string
+}
+
+type ImportedType struct {
+	Import string
+	Type   CustomType
 }
 
 type ArrayType struct {
@@ -156,43 +202,53 @@ type MapType struct {
 // Interface functions
 func (t PrimitiveType) isFieldType() {}
 func (t CustomType) isFieldType()    {}
+func (t ImportedType) isFieldType()  {}
 func (t ArrayType) isFieldType()     {}
 func (t MapType) isFieldType()       {}
 
 // String functions
 func (t PrimitiveType) String() string { return t.Value }
 func (t CustomType) String() string    { return t.Value }
+func (t ImportedType) String() string  { return t.Import + "." + t.Type.Value }
 func (t ArrayType) String() string     { return "[]" + t.Type.String() }
 func (t MapType) String() string       { return "map[" + t.KeyType.String() + "]" + t.ValueType.String() }
 
 // Convert
 func Convert(name string, t FieldType) string {
-	switch t.baseType().(type) {
+	switch x := t.(type) {
 	case CustomType:
-		return "in." + t.String() + ".Convert()"
+		return "in." + x.String() + ".Convert()"
+	case ImportedType:
+		return "in." + x.Type.String() + ".Convert()"
 	}
 	return "in." + name
 }
 
-func (t PrimitiveType) Convert(name string) string {
-	return "in." + name
-}
-func (t CustomType) Convert(name string) string {
-	return "in." + t.String() + ".Convert()"
-}
-func (t ArrayType) Convert(name string) string {
-	return "in." + name
-}
-func (t MapType) Convert(name string) string {
-	return "in." + name
-}
+// func (t PrimitiveType) Convert(name string) string {
+// 	return "in." + name
+// }
+// func (t CustomType) Convert(name string) string {
+// 	return "in." + t.String() + ".Convert()"
+// }
+// func (t ImportedType) Convert(name string) string {
+// 	return t.Type.Convert(name)
+// }
+// func (t ArrayType) Convert(name string) string {
+// 	return "in." + name
+// }
+// func (t MapType) Convert(name string) string {
+// 	return "in." + name
+// }
 
 // Rule functions
 func (t PrimitiveType) rule() string {
-	return "validation.Rules[" + t.Value + "]"
+	return "validation.Rules[" + t.String() + "]"
 }
 func (t CustomType) rule() string {
-	return "validation.Rule[" + t.Value + "In]"
+	return "validation.Rule[" + t.String() + "In]"
+}
+func (t ImportedType) rule() string {
+	return "validation.Rule[" + t.String() + "In]"
 }
 func (t ArrayType) rule() string {
 	typWithoutBrackets := t.Type.String()
@@ -214,5 +270,6 @@ func (t MapType) rule() string {
 // Base type
 func (t PrimitiveType) baseType() FieldType { return t }
 func (t CustomType) baseType() FieldType    { return t }
+func (t ImportedType) baseType() FieldType  { return t.Type }
 func (t ArrayType) baseType() FieldType     { return t.Type.baseType() }
 func (t MapType) baseType() FieldType       { return t.ValueType.baseType() }

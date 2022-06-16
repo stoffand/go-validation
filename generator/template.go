@@ -33,6 +33,9 @@ const (
 	
 	import (
 		"github.com/stoffand/go-validator/validation"
+		{{- range .Imports }}
+			{{ if .Used }} {{ .Alias }} {{ .Path }}	{{ end }}
+		{{- end }}
 	)
 	
 	{{ range .Types }} 

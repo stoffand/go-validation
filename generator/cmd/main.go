@@ -13,6 +13,7 @@ import (
 )
 
 // how to handle errors (with multiple files)
+// TODO add flag with which types to parse
 func main() {
 	// Input files
 	flag.Parse()
@@ -24,21 +25,23 @@ func main() {
 	// Initialize
 	fs := token.NewFileSet()
 
-	// Get file
+	// Generate for each file
 	for _, fName := range fileNames {
+		// Parse file
 		f, err := parser.ParseFile(fs, fName, nil, parser.ParseComments)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: could not parse file\n", fName)
 			continue
 		}
 
-		// Traverse fileData and create template
+		// Traverse fileData
 		fileData := generator.GetFileData(f)
 		if len(fileData.Types) == 0 {
 			fmt.Fprintf(os.Stderr, "%s: did not contain any parseable types\n", fName)
 			continue
 		}
 
+		// Create template
 		templateData, err := fileData.CreateTemplate()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: could not create template\n", fName)
