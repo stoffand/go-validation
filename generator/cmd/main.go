@@ -48,12 +48,13 @@ func main() {
 			continue
 		}
 
-		// Get filename (without path)
+		// Create new file path wih vgen prefix
 		a := strings.Split(fName, "/")
-		fileName := a[len(a)-1]
+		a[len(a)-1] = "vgen_" + a[len(a)-1]
+		path := strings.Join(a, "/")
 
 		// Write to file
-		err = os.WriteFile("vgen_"+fileName, templateData, 0644)
+		err = os.WriteFile(path, templateData, 0444) // normal 0644, read-only 0444
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: could write to files\n", fName)
 			continue

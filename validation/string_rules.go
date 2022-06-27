@@ -6,6 +6,15 @@ import (
 	"regexp"
 )
 
+type StringNotEmptyRule struct{}
+
+func (r StringNotEmptyRule) Validate(in string) error {
+	if len(in) == 0 {
+		return fmt.Errorf("string can't be empty")
+	}
+	return nil
+}
+
 type StringMinLengthRule struct {
 	Len       int32
 	Inclusive bool
@@ -59,7 +68,6 @@ func (r StringExactLengthRule) Validate(input string) error {
 
 type StringRegexRule struct {
 	Regex string
-	// Description string
 }
 
 func (r StringRegexRule) Validate(input string) error {

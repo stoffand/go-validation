@@ -9,32 +9,32 @@ import (
 // TODO find better way to know if you came from arr or map (using boolean right now)
 
 var (
-	arrMain = `  var res1 {{ .FullType }} 
+	arrBase = `  var res1 {{ .FullType }} 
 		for _, v1 := range *in.{{ .Name }} {
 			{{ .Inner }}
 		}
 		res.{{ .Name }} = {{ if .Pointer }}&{{ end }}res1 `
-	arrOuterArr = ` var res{{ .Depth2 }} {{ .FullType }} 
+	arrArr = ` var res{{ .Depth2 }} {{ .FullType }} 
 		for _, v{{ .Depth2 }} := range v{{ .Depth1 }} { 
 			{{ .Inner }}
 		} 
 		res{{ .Depth1 }} = append(res{{ .Depth1 }}, res{{ .Depth2 }})`
-	arrOuterMap = ` var res{{ .Depth2 }} {{ .FullType }} 
+	arrMap = ` var res{{ .Depth2 }} {{ .FullType }} 
 		for _, v{{ .Depth2 }} := range v{{ .Depth1 }} { 
 			{{ .Inner }}
 		} 
 		res{{ .Depth1 }}[k{{ .Depth1 }}] = res{{ .Depth2 }}`
-	mapMain = ` res1 := make({{ .FullType }})
+	mapBase = ` res1 := make({{ .FullType }})
  		for k1, v1 := range *in.{{ .Name }} {
 			 {{ .Inner }}
  		}
  		res.{{ .Name }} = {{ if .Pointer }}&{{ end }}res1 `
-	mapOuterMap = ` res{{ .Depth2 }} := make({{ .FullType }})
+	mapMap = ` res{{ .Depth2 }} := make({{ .FullType }})
  		for k{{ .Depth2 }}, v{{ .Depth2 }} := range v{{ .Depth1 }} {
 			 {{ .Inner }}
  		}
 		res{{ .Depth1 }}[k{{ .Depth1 }}] = res{{ .Depth2 }}`
-	mapOuterArr = ` res{{ .Depth2 }} := make({{ .FullType }})
+	mapArr = ` res{{ .Depth2 }} := make({{ .FullType }})
  		for k{{ .Depth2 }}, v{{ .Depth2 }} := range v{{ .Depth1 }} {
 			 {{ .Inner }}
  		}
@@ -59,11 +59,11 @@ func (t ArrayType) customConvert(name string, depth int, pointer bool, lastArr b
 	var tmpl *template.Template
 	var err error
 	if depth == 0 {
-		tmpl, err = template.New("tmpl").Parse(arrMain)
+		tmpl, err = template.New("tmpl").Parse(arrBase)
 	} else if lastArr {
-		tmpl, err = template.New("tmpl").Parse(arrOuterArr)
+		tmpl, err = template.New("tmpl").Parse(arrArr)
 	} else {
-		tmpl, err = template.New("tmpl").Parse(arrOuterMap)
+		tmpl, err = template.New("tmpl").Parse(arrMap)
 	}
 	if err != nil {
 		panic(err)
@@ -114,11 +114,11 @@ func (t MapType) customConvert(name string, depth int, pointer bool, lastArr boo
 	var tmpl *template.Template
 	var err error
 	if depth == 0 {
-		tmpl, err = template.New("tmpl").Parse(mapMain)
+		tmpl, err = template.New("tmpl").Parse(mapBase)
 	} else if !lastArr {
-		tmpl, err = template.New("tmpl").Parse(mapOuterMap)
+		tmpl, err = template.New("tmpl").Parse(mapMap)
 	} else {
-		tmpl, err = template.New("tmpl").Parse(mapOuterArr)
+		tmpl, err = template.New("tmpl").Parse(mapArr)
 	}
 	if err != nil {
 		panic(err)

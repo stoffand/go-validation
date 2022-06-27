@@ -2,6 +2,7 @@ package generator
 
 import (
 	"go/ast"
+	"regexp"
 	"strings"
 )
 
@@ -26,17 +27,20 @@ func (v TypeVisitor) Visit(n ast.Node) ast.Visitor {
 	case *ast.File:
 		v.Data.Pkg = d.Name.Name
 		for _, i := range d.Imports {
+			// Create import data
 			imp := Import{Path: i.Path.Value}
 			if i.Name != nil {
 				imp.Alias = i.Name.Name
-			} else { // TODO mac specific right now
+			} else {
+				// Extract alias from path
 				trimmed := strings.Trim(i.Path.Value, `"`)
-				split := strings.Split(trimmed, "/")
+				split := strings.Split(trimmed, "/") // TODO mac specific right now
 				alias := split[len(split)-1]
 				imp.Alias = alias
 			}
 			v.Data.Imports = append(v.Data.Imports, imp)
 		}
+
 	case *ast.TypeSpec:
 		tName := d.Name.Name
 		newType := Type{
@@ -45,15 +49,35 @@ func (v TypeVisitor) Visit(n ast.Node) ast.Visitor {
 		switch t := d.Type.(type) {
 		case *ast.StructType:
 			for _, f := range t.Fields.List {
-				fields := createFields(tName, f, v.Data)
-				for _, v := range fields {
-					newType.addField(v)
+				args := createFieldArgs{typeName: tName, data: v.Data}
+				if f.Tag != nil {
+					args.parseTags(f.Tag.Value)
+				}
+				for _, n := range f.Names {
+					args.fieldName = n.Name
+					newType.addField(args, f.Type)
 				}
 			}
 		case *ast.Ident:
-			panic("type aliases not implemented")
+			panic("type aliases not supported")
 		}
 		v.Data.addType(newType)
 	}
 	return v
+}
+
+func (i *createFieldArgs) parseTags(in string) {
+	r := regexp.MustCompile(`vgen:"(.*)"`)
+	match := r.FindStringSubmatch(in)
+	if len(match) > 0 {
+		args := match[1]
+		args = strings.ReplaceAll(args, " ", "")
+		split := strings.Split(args, ",")
+
+		for _, tag := range split {
+			if tag == "skip" {
+				i.skip = true
+			}
+		}
+	}
 }

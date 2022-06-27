@@ -26,8 +26,7 @@ func (d Data) CreateTemplate() ([]byte, error) {
 }
 
 const (
-	tmplStr = `
-	// Generated file DO NOT EDIT
+	tmplStr = ` // Generated file DO NOT EDIT
 
 	package {{ .Pkg }}
 	
@@ -57,6 +56,7 @@ const (
 		{{- end }}
 		return res
 	}
+
 	// Rules
 	type {{ .Name }}Rules struct {
 		{{- range .Fields }}
