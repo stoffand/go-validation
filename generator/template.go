@@ -31,7 +31,7 @@ const (
 	package {{ .Pkg }}
 	
 	import (
-		"github.com/stoffand/go-validator/validation"
+		"github.com/stoffand/go-validation/validation"
 		{{- range .Imports }}
 			{{ if .Used }} {{ .Alias }} {{ .Path }}	{{ end }}
 		{{- end }}
