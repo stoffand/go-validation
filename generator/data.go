@@ -242,7 +242,7 @@ func (t MapType) String() string       { return "map[" + t.KeyType.String() + "]
 
 // Rule functions
 func (t PrimitiveType) rule() string {
-	return "validation.Rules[" + t.String() + "]"
+	return "validation.Rule[" + t.String() + "]"
 }
 func (t CustomType) rule() string {
 	return "validation.Rule[" + t.String() + "In]"
@@ -256,7 +256,7 @@ func (t ArrayType) rule() string {
 	case CustomType:
 		typWithoutBrackets += "In"
 	}
-	return "validation.ListRules[" + typWithoutBrackets + "]"
+	return "validation.ListRule[" + typWithoutBrackets + "]"
 }
 func (t MapType) rule() string {
 	valWithoutBrackets := t.ValueType.String()
@@ -264,7 +264,7 @@ func (t MapType) rule() string {
 	case CustomType:
 		valWithoutBrackets += "In"
 	}
-	return "validation.MapRules[" + t.KeyType.String() + "," + valWithoutBrackets + "]"
+	return "validation.MapRule[" + t.KeyType.String() + "," + valWithoutBrackets + "]"
 }
 
 // Base type
