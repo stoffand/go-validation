@@ -3,7 +3,11 @@ package generator
 import (
 	"fmt"
 	"go/ast"
+	"regexp"
+	"strings"
 )
+
+// TODO move data, field and dataType into individual files
 
 // ImportPath string?
 type Data struct {
@@ -11,6 +15,12 @@ type Data struct {
 	Types   []Type
 	Aliases []Alias
 	Imports []Import
+}
+
+type Import struct {
+	Alias string
+	Path  string
+	Used  bool
 }
 
 func (d *Data) UseImport(imp string) {
@@ -21,10 +31,27 @@ func (d *Data) UseImport(imp string) {
 	}
 }
 
-type Import struct {
-	Alias string
-	Path  string
-	Used  bool
+type tags struct {
+	skip bool
+}
+
+func parseTags(in string) tags {
+	tags := tags{}
+
+	r := regexp.MustCompile(`vgen:"(.*)"`)
+	match := r.FindStringSubmatch(in)
+	if len(match) > 0 {
+		args := match[1]
+		args = strings.ReplaceAll(args, " ", "")
+		split := strings.Split(args, ",")
+
+		for _, tag := range split {
+			if tag == "skip" {
+				tags.skip = true
+			}
+		}
+	}
+	return tags
 }
 
 func (d *Data) addAlias(a Alias) {
@@ -49,21 +76,23 @@ func (t *Type) addField(args createFieldArgs, expr ast.Expr) {
 	var err error
 	newField := Field{Name: args.fieldName}
 
+	// If not required
 	if e, ok := expr.(*ast.StarExpr); ok {
 		newField.Pointer = true
 		expr = e.X
 	}
 
+	// Convert to fieldType
 	newField.Type, err = createFieldType(args.data, expr)
 	if err != nil {
 		panic(fmt.Sprintf("type %v: field %v: %v", args.typeName, args.fieldName, err))
 	}
 
 	// Skip tag, custom type acts as primitive
-	if args.skip {
-		switch x := newField.Type.(type) {
+	if args.tags.skip {
+		switch newField.BaseType().(type) {
 		case CustomType, ImportedType:
-			newField.Type = PrimitiveType{Value: x.String()}
+			newField.Type = PrimitiveType{Value: newField.Type.String()}
 		}
 	}
 
@@ -79,7 +108,7 @@ type Field struct {
 type createFieldArgs struct {
 	typeName  string
 	fieldName string
-	skip      bool
+	tags      tags
 	data      *Data
 }
 
