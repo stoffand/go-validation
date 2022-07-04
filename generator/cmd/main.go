@@ -7,7 +7,7 @@ import (
 	"go/token"
 	"log"
 	"os"
-	"strings"
+	"path/filepath"
 
 	"github.com/stoffand/go-validation/generator"
 )
@@ -49,15 +49,16 @@ func main() {
 		}
 
 		// Create new file path wih vgen prefix
-		a := strings.Split(fName, "/")
-		a[len(a)-1] = "vgen_" + a[len(a)-1]
-		path := strings.Join(a, "/")
+		base := filepath.Base(fName)
+		dir := filepath.Dir(fName)
+		path := filepath.Join(dir, "vgen_"+base)
 
-		// if file exists
+		// if readonly file already exists, set writeable
 		if _, err := os.Stat(path); err == nil {
 			err := os.Chmod(path, 0644)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s: could write to files: %v\n", fName, err)
+				fmt.Fprintf(os.Stderr, "%s: could not make file writeable: %v\n", fName, err)
+				continue
 			}
 		}
 
