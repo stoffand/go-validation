@@ -45,18 +45,18 @@ const (
 		return {{ .Name }}(in)
 	}
 
-	type {{ .Name }}InRules struct {
+	type {{ .Name }}Rules struct {
 		validation.Rule[{{ .Type }}]
 	}
 
-	func (r {{ .Name }}InRules) Validate(in {{ .Name }}In) error {
+	func (r {{ .Name }}Rules) Validate(in {{ .Name }}In) error {
 		if r.Rule != nil {
 			return r.Rule.Validate({{ .Type }}(in))
 		}
 		return nil
 	}
 
-	func (r {{ .Name }}InRules) ValidatedConvert(in {{ .Name }}In) ({{ .Name }}, error) {
+	func (r {{ .Name }}Rules) ValidatedConvert(in {{ .Name }}In) ({{ .Name }}, error) {
 		err := r.Validate(in)
 		if err != nil {
 			return {{ .Name }}({{ .Type }}(in)), nil
@@ -91,6 +91,7 @@ const (
 		{{- range .Fields }}
 			{{ .Name }} {{ .Rule }}            
 		{{- end }}
+		Custom validation.Rule[{{ .Name }}]
 	}
 	
 	// Validate required and validation rules
@@ -105,6 +106,11 @@ const (
 				errs.AddError("{{ .Name }}", validation.RequiredErr{})
 			} {{ end }}
 		{{- end }} 
+		if r.Custom != nil {
+			if err := r.Custom.Validate(in.Convert()); err != nil {
+				errs.AddError("Custom", err)
+			}
+		}
 		if len(errs.FailedFields) == 0 {
 			return nil
 		}
