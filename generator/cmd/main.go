@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/stoffand/go-validator/generator"
+	"github.com/stoffand/go-validation/generator"
 )
 
 // how to handle errors (with multiple files)
