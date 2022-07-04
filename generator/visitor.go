@@ -43,11 +43,11 @@ func (v TypeVisitor) Visit(n ast.Node) ast.Visitor {
 
 	case *ast.TypeSpec:
 		tName := d.Name.Name
-		newType := Type{
-			Name: tName,
-		}
 		switch t := d.Type.(type) {
 		case *ast.StructType:
+			newType := Type{
+				Name: tName,
+			}
 			for _, f := range t.Fields.List {
 				args := createFieldArgs{typeName: tName, data: v.Data}
 				if f.Tag != nil {
@@ -58,10 +58,12 @@ func (v TypeVisitor) Visit(n ast.Node) ast.Visitor {
 					newType.addField(args, f.Type)
 				}
 			}
+			v.Data.addType(newType)
 		case *ast.Ident:
-			panic("type aliases not supported")
+			v.Data.addAlias(Alias{Name: tName, Type: t.Name})
+			// return v
+			// panic("type aliases not supported")
 		}
-		v.Data.addType(newType)
 	}
 	return v
 }

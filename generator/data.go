@@ -9,6 +9,7 @@ import (
 type Data struct {
 	Pkg     string
 	Types   []Type
+	Aliases []Alias
 	Imports []Import
 }
 
@@ -24,6 +25,15 @@ type Import struct {
 	Alias string
 	Path  string
 	Used  bool
+}
+
+func (d *Data) addAlias(a Alias) {
+	d.Aliases = append(d.Aliases, a)
+}
+
+type Alias struct {
+	Name string
+	Type string
 }
 
 func (d *Data) addType(t Type) {

@@ -36,6 +36,35 @@ const (
 			{{ if .Used }} {{ .Alias }} {{ .Path }}	{{ end }}
 		{{- end }}
 	)
+
+	{{ range .Aliases }}
+
+	type {{ .Name }}In {{ .Name }}		
+
+	func (in {{ .Name }}In) Convert() {{ .Name }} {
+		return {{ .Name }}(in)
+	}
+
+	type {{ .Name }}InRules struct {
+		validation.Rule[{{ .Type }}]
+	}
+
+	func (r {{ .Name }}InRules) Validate(in {{ .Name }}In) error {
+		if r.Rule != nil {
+			return r.Rule.Validate({{ .Type }}(in))
+		}
+		return nil
+	}
+
+	func (r {{ .Name }}InRules) ValidatedConvert(in {{ .Name }}In) ({{ .Name }}, error) {
+		err := r.Validate(in)
+		if err != nil {
+			return {{ .Name }}({{ .Type }}(in)), nil
+		}
+		return in.Convert(), nil
+	}
+
+	{{ end }}
 	
 	{{ range .Types }} 
 	
