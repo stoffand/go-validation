@@ -53,10 +53,18 @@ func main() {
 		a[len(a)-1] = "vgen_" + a[len(a)-1]
 		path := strings.Join(a, "/")
 
+		// if file exists
+		if _, err := os.Stat(path); err == nil {
+			err := os.Chmod(path, 0644)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s: could write to files: %v\n", fName, err)
+			}
+		}
+
 		// Write to file
 		err = os.WriteFile(path, templateData, 0444) // normal 0644, read-only 0444
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: could write to files\n", fName)
+			fmt.Fprintf(os.Stderr, "%s: could write to files: %v\n", fName, err)
 			continue
 		}
 	}
