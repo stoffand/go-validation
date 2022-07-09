@@ -15,8 +15,8 @@ func GetFileData(file *ast.File) Data {
 
 // Use name visitor?
 type TypeVisitor struct {
-	Data     *Data
-	SkipNext bool
+	Data        *Data
+	IncludeNext bool
 }
 
 // Visit searches for types and sends data to generate files in data.go
@@ -44,14 +44,13 @@ func (v TypeVisitor) Visit(n ast.Node) ast.Visitor {
 		if d.Doc != nil {
 			last := d.Doc.List[len(d.Doc.List)-1]
 			tags := parseTags(last.Text)
-			if tags.skip {
-				v.SkipNext = true
+			if tags.include {
+				v.IncludeNext = true
 			}
 		}
 	case *ast.TypeSpec:
 		// Skip type
-		if v.SkipNext {
-			v.SkipNext = false
+		if !v.IncludeNext {
 			return v
 		}
 
