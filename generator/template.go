@@ -99,8 +99,10 @@ const (
 		var errs validation.StructErr
 		{{- range .Fields }}
 			if in.{{ .Name }} != nil {
-				if err := r.{{ .Name }}.Validate(*in.{{ .Name }}); err != nil {
-					errs.AddError("{{ .Name }}", err)
+				if r.{{ .Name }} != nil {
+					if err := r.{{ .Name }}.Validate(*in.{{ .Name }}); err != nil {
+						errs.AddError("{{ .Name }}", err)
+					}
 				}
 			}  {{ if not .Pointer }} else {
 				errs.AddError("{{ .Name }}", validation.RequiredErr{})

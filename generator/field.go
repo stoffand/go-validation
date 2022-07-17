@@ -78,12 +78,14 @@ func (f Field) Convert() string {
 
 func convertHelper(t Field) string {
 	ident := "res." + t.Name + " = "
+	customConvert := "in." + t.Name + ".Convert()"
 
 	switch t.Type.(type) {
-	case CustomType:
-		return ident + "in." + t.Name + ".Convert()"
-	case ImportedType:
-		return ident + "in." + t.Name + ".Convert()"
+	case CustomType, ImportedType:
+		if t.Pointer {
+			return "tmp := " + customConvert + "\n" + ident + "&tmp"
+		}
+		return ident + customConvert
 	}
 	if t.Pointer {
 		return ident + "in." + t.Name
